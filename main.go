@@ -69,21 +69,22 @@ func (hub *NotificationHub) RunConnector(wg *sync.WaitGroup) {
 			}
 			select {
 			case msg := <-pubSubGroup.publisherQueue:
-				fmt.Println(fmt.Sprintf("\t\t\t\t\t\tConnector received msg: '%s' from publisher: %s", msg.data, topic))
+				fmt.Println(fmt.Sprintf("\t\t\t\t\t\t\t\t\tConnector received msg: '%s' from publisher: %s", msg.data, topic))
 				if len(pubSubGroup.subscribers) == 0 {
-					fmt.Println(fmt.Sprintf("\t\t\t\t\t\tConnector didn't find any subscribers for %s Topic. Hence ignoring the received msg", topic))
+					fmt.Println(fmt.Sprintf("\t\t\t\t\t\t\t\t\tConnector didn't find any subscribers for %s Topic. Hence ignoring the received msg", topic))
 					break
 				}
 				for i := 0; i < len(pubSubGroup.subscribers); i += 1 {
-					fmt.Println(fmt.Sprintf("\t\t\t\t\t\tConnector sent msg: '%s' to subscriber: %s", msg.data, pubSubGroup.subscribers[i].Id))
+					fmt.Println(fmt.Sprintf("\t\t\t\t\t\t\t\t\tConnector sent msg: '%s' to subscriber: %s", msg.data, pubSubGroup.subscribers[i].Id))
 					pubSubGroup.subscribers[i].Queue <- msg
 				}
 			default:
-				fmt.Println(fmt.Sprintf("\t\t\t\t\t\tConnector listening for new msgs. Nothing yet!"))
+				fmt.Println(fmt.Sprintf("\t\t\t\t\t\t\t\t\tConnector listening for new msgs. Nothing yet!"))
 				time.Sleep(10 * time.Millisecond)
 			}
 		}
-		time.Sleep(1 * time.Second)
+		fmt.Println("Revisiting all topics once more to check any pending msgs...")
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
@@ -91,10 +92,10 @@ func (subscriber *Subscriber) GetMessages() {
 	for {
 		select {
 		case msg := <-subscriber.Queue:
-			fmt.Println(fmt.Sprintf("\t\t\t\t\t\t%s Subscriber received: %s", subscriber.Id, msg))
+			fmt.Println(fmt.Sprintf("\t\t\t\t\t\t\t\t\t%s Subscriber received: %s", subscriber.Id, msg))
 		default:
-			fmt.Println(fmt.Sprintf("\t\t\t\t\t\t%s Subscriber listening for new msgs. Nothing yet!", subscriber.Id))
-			time.Sleep(1 * time.Second)
+			fmt.Println(fmt.Sprintf("\t\t\t\t\t\t\t\t\t%s Subscriber listening for new msgs. Nothing yet!", subscriber.Id))
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }
@@ -102,9 +103,9 @@ func (subscriber *Subscriber) GetMessages() {
 func (hub *NotificationHub) RegisterSubscriber(topic string, subscriberId string) (Subscriber, error) {
 	pubSubGroup, isTopicPresent := hub.GetPubSubGroupForTopic(topic)
 	if !isTopicPresent {
-		return Subscriber{}, errors.New(fmt.Sprintf("\t\t\t\t\t\tTopic: %s not found in registry.", topic))
+		return Subscriber{}, errors.New(fmt.Sprintf("\t\t\t\t\t\t\t\t\tTopic: %s not found in registry.", topic))
 	}
-	fmt.Println(fmt.Sprintf("\t\t\t\t\t\tAll existing subscribers against the topic: %s are: %v", topic, pubSubGroup.subscribers))
+	fmt.Println(fmt.Sprintf("\t\t\t\t\t\t\t\t\tAll existing subscribers against the topic: %s are: %v", topic, pubSubGroup.subscribers))
 	subscriber := Subscriber{
 		Id:    subscriberId,
 		Queue: make(chan Message),
@@ -136,7 +137,7 @@ func sendMessage(hub *NotificationHub, topic, data string) {
 // func doBuild(wg *sync.WaitGroup, hub *NotificationHub, topic string) {
 func doBuild(hub *NotificationHub, topic string) {
 	fmt.Println(fmt.Sprintf("Task started for %s topic", topic))
-	for i := 0; i < 10; i += 1 {
+	for i := 0; i < 10*10*10*10; i += 1 {
 		sendMessage(hub, topic, fmt.Sprintf("I am working on %s task. Item[%d]", topic, i))
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -150,14 +151,14 @@ func main() {
 	go doBuild(&hub, "build-123")
 	go doBuild(&hub, "build-456")
 	go doBuild(&hub, "proxy-refresh")
-	time.Sleep(5 * time.Second)
 
 	var connectionWG sync.WaitGroup
 	go hub.RunConnector(&connectionWG)
 	connectionWG.Add(1)
 
+	fmt.Println("\t\t\t\t\t\t\t\t\tSimulating the delayed start of consumers through a 5 sec sleep...")
 	time.Sleep(5 * time.Second)
-	fmt.Println("\t\t\t\t\t\tSubscribers coming up now...")
+	fmt.Println("\t\t\t\t\t\t\t\t\tSubscribers coming up now...")
 	c1_subscriber, _ := hub.RegisterSubscriber("build-123", "c1")
 	go c1_subscriber.GetMessages()
 	c2_subscriber, _ := hub.RegisterSubscriber("build-123", "c2")
